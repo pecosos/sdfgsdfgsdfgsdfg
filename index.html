@@ -273,6 +273,13 @@
     // Carpeta donde están todas las imágenes
     const RUTA_IMAGENES = "img/";
     
+    // Configuración de sonidos
+    const RUTA_SONIDOS = "sonidos-darksouls/";
+    const SONIDO_INICIO_CLICK = "frpg_main [3].wav";     // Sonido al hacer clic en Iniciar
+    const SONIDO_INICIO_HOVER = "frpg_main [70].wav";    // Sonido al pasar el ratón por encima
+    const SONIDO_RESPUESTA_CORRECTA = "frpg_main [164].wav";  // Sonido al elegir opción correcta ✅
+    const SONIDO_RESPUESTA_INCORRECTA = "frpg_main [125].wav"; // Sonido al elegir opción incorrecta ❌
+    
     // Lista de preguntas - SOLO debes especificar la imagen correcta de cada una
     const preguntas = [
         { texto: "🧽 ¿Quién lava los trastes?", imgCorrecta: "trastes_correcto.jpg" },
@@ -295,6 +302,8 @@
     let score = 0;
     let waitingForNext = false;
     let nextTimeout = null;
+    let hoverSoundPlaying = false;
+    let hoverSoundTimeout = null;
     
     // Detectar si es móvil para ajustar tiempos (opcional)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -311,6 +320,47 @@
     const messageBox = document.getElementById('messageBox');
     const progressIndicator = document.getElementById('progressIndicator');
     const finalScoreSpan = document.getElementById('finalScoreSpan');
+    
+    // ============================================================
+    // FUNCIONES PARA REPRODUCIR SONIDOS
+    // ============================================================
+    
+    function reproducirSonido(rutaSonido, volumen = 0.8) {
+        const audio = new Audio(rutaSonido);
+        audio.volume = volumen;
+        
+        audio.play().catch(error => {
+            console.warn(`No se pudo reproducir el sonido ${rutaSonido}:`, error);
+        });
+        
+        return audio;
+    }
+    
+    function reproducirSonidoInicioClick() {
+        reproducirSonido(`${RUTA_SONIDOS}${SONIDO_INICIO_CLICK}`, 0.8);
+    }
+    
+    function reproducirSonidoInicioHover() {
+        // Evitar que se reproduzca múltiples veces si el ratón se mueve dentro del botón
+        if (hoverSoundPlaying) return;
+        
+        hoverSoundPlaying = true;
+        reproducirSonido(`${RUTA_SONIDOS}${SONIDO_INICIO_HOVER}`, 0.6); // Volumen un poco más bajo para hover
+        
+        // Resetear el flag después de un breve tiempo para permitir futuros hovers
+        if (hoverSoundTimeout) clearTimeout(hoverSoundTimeout);
+        hoverSoundTimeout = setTimeout(() => {
+            hoverSoundPlaying = false;
+        }, 500); // Esperar 500ms antes de permitir otro sonido hover
+    }
+    
+    function reproducirSonidoCorrecto() {
+        reproducirSonido(`${RUTA_SONIDOS}${SONIDO_RESPUESTA_CORRECTA}`, 0.8);
+    }
+    
+    function reproducirSonidoIncorrecto() {
+        reproducirSonido(`${RUTA_SONIDOS}${SONIDO_RESPUESTA_INCORRECTA}`, 0.8);
+    }
     
     function loadQuestion() {
         if (currentIndex >= preguntas.length) {
@@ -384,9 +434,13 @@
             score++;
             messageBox.innerHTML = '✅ ¡CORRECTO! ✅';
             messageBox.className = 'message-area correct-msg';
+            // 🔊 Reproducir sonido de respuesta correcta
+            reproducirSonidoCorrecto();
         } else {
             messageBox.innerHTML = `❌ INCORRECTO ❌`;
             messageBox.className = 'message-area wrong-msg';
+            // 🔊 Reproducir sonido de respuesta incorrecta
+            reproducirSonidoIncorrecto();
         }
         
         waitingForNext = true;
@@ -431,9 +485,18 @@
         
         messageBox.innerHTML = '';
         messageBox.className = 'message-area';
+        
+        // Re-aplicar el evento hover al botón de inicio (por si acaso)
+        const newStartBtn = document.getElementById('startBtn');
+        if (newStartBtn) {
+            newStartBtn.addEventListener('mouseenter', reproducirSonidoInicioHover);
+        }
     }
     
     function startGame() {
+        // 🔊 REPRODUCIR SONIDO AL HACER CLIC EN INICIAR
+        reproducirSonidoInicioClick();
+        
         if (nextTimeout) clearTimeout(nextTimeout);
         currentIndex = 0;
         score = 0;
@@ -446,7 +509,17 @@
         loadQuestion();
     }
     
+    // ============================================================
+    // EVENTOS DEL BOTÓN INICIAR
+    // ============================================================
+    
+    // Sonido al pasar el ratón por encima (HOVER)
+    startBtn.addEventListener('mouseenter', reproducirSonidoInicioHover);
+    
+    // Sonido al hacer clic
     startBtn.addEventListener('click', startGame);
+    
+    // Botón de reset (sin sonido por ahora, pero puedes añadirlo si quieres)
     resetBtn.addEventListener('click', resetGame);
     
     // Prevenir zoom doble tap en botones para mejor experiencia móvil
@@ -460,6 +533,10 @@
     
     console.log(`📱 Modo ${isMobile ? 'MÓVIL' : 'ESCRITORIO'} detectado`);
     console.log(`📁 Las imágenes deben estar en: "${RUTA_IMAGENES}"`);
+    console.log(`🔊 Sonido de CLICK en Iniciar: "${RUTA_SONIDOS}${SONIDO_INICIO_CLICK}"`);
+    console.log(`🔊 Sonido de HOVER: "${RUTA_SONIDOS}${SONIDO_INICIO_HOVER}"`);
+    console.log(`🔊 Sonido de RESPUESTA CORRECTA: "${RUTA_SONIDOS}${SONIDO_RESPUESTA_CORRECTA}"`);
+    console.log(`🔊 Sonido de RESPUESTA INCORRECTA: "${RUTA_SONIDOS}${SONIDO_RESPUESTA_INCORRECTA}"`);
     console.log(`🖼️ Imagen incorrecta (siempre la misma): ${IMAGEN_INCORRECTA}`);
     console.log(`📋 Imágenes correctas necesarias:`);
     preguntas.forEach((p, i) => {
